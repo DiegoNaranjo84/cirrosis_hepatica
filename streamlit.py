@@ -93,18 +93,12 @@ texto = """
 
 st.markdown(texto)
 
+# --- Cargar dataset ---
+# URL del CSV en GitHub (raw)
+url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
 
-# Descargar el dataset
-path = kagglehub.dataset_download("aadarshvelu/liver-cirrhosis-stage-classification")
-print("Ruta local del dataset:", path)
-
-# Ver los archivos del dataset cargado
-for dirname, _, filenames in os.walk(path):
-    for filename in filenames:
-        print(os.path.join(dirname, filename))
-
-file_path = os.path.join(path, "liver_cirrhosis.csv")
-df = pd.read_csv(file_path)
+# Cargar el dataset
+df = pd.read_csv(url)
 
 # Filtrar solo columnas categóricas (tipo "object" o "category")
 cat_cols = df.select_dtypes(include=['object', 'category'])
@@ -157,10 +151,6 @@ with col2:
     st.subheader("Resumen variables numéricas")
     st.dataframe(num_summary, use_container_width=True)
 
-
-
-
-
 #####--------------------------------------------------------------------------------------#########
 
 st.markdown("""### Análisis de variables categóricas""")
@@ -169,25 +159,36 @@ st.caption("Selecciona una variable para ver su distribución en tabla y gráfic
 variables_categoricas = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
 if not variables_categoricas:
-    st.warning("No se detectaron variables categóricas (object/category/bool) en `df`.")
+    st.warning("No se detectaron variables categóricas (object/category/bool) en df.")
     st.stop()
 
-
 # =========================
-# Controles (Sidebar)
+# Controles (En la sección)
 # =========================
-st.sidebar.header("Controles")
-var = st.sidebar.selectbox("Variable categórica", options=variables_categoricas, index=0)
-incluir_na = st.sidebar.checkbox("Incluir NaN", value=True)
-metric_opt = st.sidebar.radio("Métrica", options=["Porcentaje", "Conteo"], index=0)
-top_n = st.sidebar.slider("Top N", min_value=3, max_value=30, value=10, step=1, help="Agrupa las categorías menos frecuentes en 'Otros'")
-orden_alfabetico = st.sidebar.checkbox("Ordenar categorías alfabéticamente (en la tabla)", value=False)
+st.markdown("*Controles*")
+with st.container():
+    c1, c2 = st.columns([1.6, 1.1])
+    with c1:
+        var = st.selectbox(
+            "Variable categórica",
+            options=variables_categoricas,
+            index=0,
+            key="cat_var_local"
+        )
+        top_n = st.slider(
+            "Top N (agrupa el resto en 'Otros')",
+            min_value=3, max_value=30, value=10, step=1,
+            help="Agrupa las categorías menos frecuentes en 'Otros'",
+            key="cat_topn_local"
+        )
+    with c2:
+        incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na_local")
+        orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
 
 # =========================
 # Preparar datos
 # =========================
 serie = df[var].copy()
-
 if not incluir_na:
     serie = serie.dropna()
 
@@ -214,9 +215,8 @@ if len(data) > top_n:
 else:
     data_plot = data.copy()
 
-# Orden por métrica elegida para el gráfico
-metric = "Porcentaje" if metric_opt == "Porcentaje" else "Conteo"
-data_plot = data_plot.sort_values(metric, ascending=False).reset_index(drop=True)
+# Orden por Conteo (siempre)
+data_plot = data_plot.sort_values("Conteo", ascending=False).reset_index(drop=True)
 
 # Orden opcional alfabético en la tabla (no afecta el gráfico)
 data_table = data_plot.copy()
@@ -229,7 +229,7 @@ if orden_alfabetico:
 tcol, gcol = st.columns([1.1, 1.3], gap="large")
 
 with tcol:
-    st.subheader(f"Distribución de `{var}`")
+    st.subheader(f"Distribución de {var}")
     st.dataframe(
         data_table.assign(Porcentaje=data_table["Porcentaje"].round(2)),
         use_container_width=True
@@ -241,7 +241,7 @@ with gcol:
         alt.Chart(data_plot)
         .mark_arc(outerRadius=110)
         .encode(
-            theta=alt.Theta(field=metric, type="quantitative"),
+            theta=alt.Theta(field="Conteo", type="quantitative"),
             color=alt.Color("Categoría:N", legend=alt.Legend(title="Categoría")),
             tooltip=[
                 alt.Tooltip("Categoría:N"),
@@ -249,7 +249,7 @@ with gcol:
                 alt.Tooltip("Porcentaje:Q", format=".2f")
             ],
         )
-        .properties(width="container", height=380)
+        .properties(height=380)
     )
     st.altair_chart(chart, use_container_width=True)
 
@@ -265,14 +265,9 @@ with c2:
 with c3:
     st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
-st.caption("Consejo: usa **Top N** para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
-
-
-
-
+st.caption("Consejo: usa *Top N* para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
 #####--------------------------------------------------------------------------------------#########
-
 
 # =========================
 # Análisis de variables numéricas
@@ -284,15 +279,32 @@ st.caption("Selecciona una variable para ver su distribución en tabla, boxplot 
 variables_numericas = df.select_dtypes(include=["number"]).columns.tolist()
 
 if not variables_numericas:
-    st.warning("No se detectaron variables numéricas en `df`.")
+    st.warning("No se detectaron variables numéricas en df.")
     st.stop()
 
-# Controles (Sidebar)
-st.sidebar.header("Controles - Numéricas")
-var_num = st.sidebar.selectbox("Variable numérica", options=variables_numericas, index=0, key="num_var")
-bins = st.sidebar.slider("Número de bins (histograma)", min_value=5, max_value=100, value=30, step=5)
+# =========================
+# Controles dentro de la sección
+# =========================
+st.markdown("*Controles*")
+with st.container():
+    c1, c2 = st.columns([1.6, 1.4])
+    with c1:
+        var_num = st.selectbox(
+            "Variable numérica",
+            options=variables_numericas,
+            index=0,
+            key="num_var_local"
+        )
+    with c2:
+        bins = st.slider(
+            "Número de bins (histograma)",
+            min_value=5, max_value=100, value=30, step=5,
+            key="num_bins_local"
+        )
 
+# =========================
 # Preparar serie
+# =========================
 serie_num = df[var_num].dropna()
 
 # =========================
@@ -315,19 +327,26 @@ with c5:
 # =========================
 g1, g2 = st.columns(2, gap="large")
 
+# --- Boxplot vertical y ancho ---
 with g1:
-    st.subheader(f"Boxplot de `{var_num}`")
+    st.subheader(f"Boxplot de {var_num} (vertical)")
     box_data = pd.DataFrame({var_num: serie_num})
+    box_data["_grupo_"] = "Distribución"  # ancla un grupo único en X
+
     box_chart = (
         alt.Chart(box_data)
-        .mark_boxplot()
-        .encode(y=alt.Y(var_num, type="quantitative"))
-        .properties(height=300)
+        .mark_boxplot(size=140, extent=1.5)  # size = ancho de la caja; extent=1.5 => whiskers tipo Tukey
+        .encode(
+            x=alt.X("_grupo_:N", axis=None, title=""),
+            y=alt.Y(f"{var_num}:Q", title=var_num)
+        )
+        .properties(height=350)
     )
     st.altair_chart(box_chart, use_container_width=True)
 
+# --- Histograma ---
 with g2:
-    st.subheader(f"Histograma de `{var_num}`")
+    st.subheader(f"Histograma de {var_num}")
     hist_data = pd.DataFrame({var_num: serie_num})
     hist_chart = (
         alt.Chart(hist_data)
@@ -335,23 +354,24 @@ with g2:
         .encode(
             alt.X(var_num, bin=alt.Bin(maxbins=bins)),
             y='count()',
-            tooltip=[alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)), alt.Tooltip('count()', title="Frecuencia")]
+            tooltip=[
+                alt.Tooltip(var_num, bin=alt.Bin(maxbins=bins)),
+                alt.Tooltip('count()', title="Frecuencia")
+            ]
         )
-        .properties(height=300)
+        .properties(height=350)
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
-
+# =========================
+# Matriz de Correlación
+# =========================
 st.markdown("### Matriz de Correlación")
-
 correlacion = df.corr(numeric_only=True)
-
 fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
-
-st.pyplot(fig) 
-
+st.pyplot(fig)
 
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 1. Selección de carácteristicas""")
@@ -488,7 +508,7 @@ st.title("🧪 Metodología del Proyecto")
 
 st.markdown("""
 Este proyecto sigue una **metodología de Machine Learning** para la clasificación de la cirrosis hepática.  
-A continuación, se presentan los pasos de manera interactiva:
+A continuación, se presentan los pasos:
 """)
 
 # Paso 1
