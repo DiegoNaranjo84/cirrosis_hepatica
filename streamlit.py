@@ -394,7 +394,7 @@ g1, g2 = st.columns(2, gap="large")
 
 # --- Boxplot vertical y ancho ---
 with g1:
-    st.subheader(f"Boxplot de {var_num} (vertical)")
+    st.subheader(f"Boxplot de {var_num} ")
     box_data = pd.DataFrame({var_num: serie_num})
     box_data["_grupo_"] = "Distribución"  # ancla un grupo único en X
 
