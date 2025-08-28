@@ -567,11 +567,12 @@ resultados = {
     ]
 }
 
-# Opción 1: Usando st.dataframe con ajustes
-st.dataframe(
-    df_resultados.style.hide(axis="index"),  # ocultar índice
-    use_container_width=True  # tabla ocupa todo el ancho
-)
+# Quitar el índice (0,1,2,...) y reemplazarlo por uno limpio
+df_resultados_reset = df_resultados.reset_index(drop=True)
+
+# Mostrar la tabla de lado a lado
+st.dataframe(df_resultados_reset, use_container_width=True)
+
 
 
 
