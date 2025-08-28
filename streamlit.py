@@ -111,20 +111,15 @@ with st.expander("📌 Paso 5: Evaluación"):
     - También se aplicó validación cruzada para obtener una estimación más robusta.  
     """)
 
-st.success("✅ Metodología explicada de forma dinámica")
-
-# ----------------------------
-# Diagrama visual del pipeline
-# ----------------------------
 st.subheader("🔎 Flujo Metodológico")
 
 dot = Digraph()
 
-dot.node("A", "Carga de Datos")
-dot.node("B", "Preprocesamiento")
-dot.node("C", "Selección de características (RFE/RFECV)")
-dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)")
-dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)")
+dot.node("A", "Carga de Datos", shape="box")
+dot.node("B", "Preprocesamiento", shape="box")
+dot.node("C", "Selección de características", shape="box")
+dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)", shape="box")
+dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)", shape="box")
 
 dot.edges(["AB", "BC", "CD", "DE"])
 
