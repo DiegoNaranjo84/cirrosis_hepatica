@@ -49,6 +49,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_score
+import streamlit as st
+from graphviz import Digraph
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,6 +58,77 @@ warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
+
+# ----------------------------
+# Sección de Metodología
+# ----------------------------
+st.title("🧪 Metodología del Proyecto")
+
+st.markdown("""
+Este proyecto sigue una **metodología de Machine Learning** para la clasificación de la cirrosis hepática.  
+A continuación, se presentan los pasos de manera interactiva:
+""")
+
+# Paso 1
+with st.expander("📌 Paso 1: Carga y Análisis Exploratorio de Datos"):
+    st.write("""
+    - Se utilizó un dataset con información clínica de pacientes.  
+    - El archivo fue almacenado en GitHub y cargado en streamlit.  
+    - Se revisó la calidad de los datos para identificar valores nulos
+    - Se crean dos secciones con filtros para revisar las variables categóricas y numéricas.
+    """)
+
+# Paso 2
+with st.expander("📌 Paso 2: Preprocesamiento"):
+    st.write("""
+    - Limpieza de datos: imputación de valores faltantes.  
+    - Codificación de variables categóricas (One-Hot Encoding).  
+    - Estandarización de las variables numéricas.  
+    """)
+
+# Paso 3
+with st.expander("📌 Paso 3: Selección de características"):
+    st.write("""
+    - Se utilizaron técnicas de filtrado de variables como: 
+        - Variables categóricas: $\chi^2$ e información mutua
+        - Variables numéricas: ANOVA e información mutua
+    - MCA y PCA
+    - RFE (Recursive Feature Elimination) con validación cruzada (selección por envoltura)
+    - Esto permite quedarnos solo con las variables más relevantes para el modelo.  
+    """)
+
+# Paso 4
+with st.expander("📌 Paso 4: Entrenamiento del modelo"):
+    st.write("""
+    - Se probaron algoritmos como **Decission tree**, **Regresión Logística**, **Random forest**, **KNN (K-Nearest Neighbors)** y **SVM (Support Vector Machine)**.  
+    -   
+    """)
+
+# Paso 5
+with st.expander("📌 Paso 5: Evaluación"):
+    st.write("""
+    - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
+    - También se aplicó validación cruzada para obtener una estimación más robusta.  
+    """)
+
+st.success("✅ Metodología explicada de forma dinámica")
+
+# ----------------------------
+# Diagrama visual del pipeline
+# ----------------------------
+st.subheader("🔎 Flujo Metodológico")
+
+dot = Digraph()
+
+dot.node("A", "Carga de Datos")
+dot.node("B", "Preprocesamiento")
+dot.node("C", "Selección de características (RFE/RFECV)")
+dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)")
+dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)")
+
+dot.edges(["AB", "BC", "CD", "DE"])
+
+st.graphviz_chart(dot)
 
 st.caption("Estudio clínico de cirrosis hepática — ficha de variables")
 
@@ -101,6 +174,8 @@ url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/l
 df = pd.read_csv(url)
 
 # Filtrar solo columnas categóricas (tipo "object" o "category")
+df['Stage'] = pd.to_numeric(df['Stage'], errors='coerce')
+df['Stage'] = pd.Categorical(df['Stage'], ordered=True)
 cat_cols = df.select_dtypes(include=['object', 'category'])
 
 st.subheader("Primeras 10 filas del dataset")
@@ -367,6 +442,10 @@ fig, ax = plt.subplots(figsize=(10, 8))
 sns.heatmap(correlacion, annot=True, cmap='coolwarm', fmt=".2f", ax=ax)
 ax.set_title("Matriz de Correlación")
 st.pyplot(fig)
+#________________________________________________________________________________________________________________________________________________________________
+
+
+
 
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 1. Selección de carácteristicas""")
