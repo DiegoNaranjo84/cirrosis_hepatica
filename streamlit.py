@@ -543,15 +543,6 @@ st.write(f"*Accuracy en test set:* {accuracy_test:.3f}")
 st.write(f"*Variables seleccionadas:* {len(selected_names)}")
 st.write(f"*Nombres:* {list(selected_names)}")
 
-# Resumen final (solo el modelo elegido)
-st.header("Resumen Final")
-st.markdown(f"""
-*Modelo:* {modelo_elegido}  
-- Accuracy: {accuracy_test:.3f}  
-- Variables seleccionadas: {len(selected_names)}  
-- Nombres: {list(selected_names)}  
-""")
-
 # =========================
 # TABLA RESUMEN
 # =========================
