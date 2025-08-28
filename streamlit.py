@@ -567,6 +567,14 @@ resultados = {
     ]
 }
 
+# Opción 1: Usando st.dataframe con ajustes
+st.dataframe(
+    df_resultados.style.hide(axis="index"),  # ocultar índice
+    use_container_width=True  # tabla ocupa todo el ancho
+)
+
+
+
 # Convertir a DataFrame
 df_resultados = pd.DataFrame(resultados)
 
