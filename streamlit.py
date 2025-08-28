@@ -182,17 +182,14 @@ with st.container():
             key="cat_topn_local"
         )
     with c2:
-        incluir_na = st.checkbox("Incluir NaN", value=True, key="cat_incluir_na_local")
         orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
 
 # =========================
-# Preparar datos
+# Preparar datos (siempre incluye NaN)
 # =========================
 serie = df[var].copy()
-if not incluir_na:
-    serie = serie.dropna()
 
-vc = serie.value_counts(dropna=incluir_na)
+vc = serie.value_counts(dropna=True)  # Se mantienen los NaN para contarlos
 
 # Etiqueta amigable para NaN
 labels = vc.index.to_list()
@@ -257,13 +254,11 @@ with gcol:
 # Extras informativos
 # =========================
 st.divider()
-c1, c2, c3 = st.columns(3)
+c1, c2 = st.columns(2)
 with c1:
     st.metric("Categorías mostradas", f"{len(data_plot)}")
 with c2:
     st.metric("Total registros (variable seleccionada)", f"{int(serie.shape[0]):,}".replace(",", "."))
-with c3:
-    st.metric("Incluye NaN", "Sí" if incluir_na else "No")
 
 st.caption("Consejo: usa *Top N* para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
@@ -375,11 +370,6 @@ st.pyplot(fig)
 
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 1. Selección de carácteristicas""")
-
-st.markdown("""# 1. Ensayo 2""")
-
-st.markdown("""# 1. Ensayo""")
-
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""## 1.1. Selección de carácteristicas categóricas""")
 # ________________________________________________________________________________________________________________________________________________________________
@@ -398,23 +388,17 @@ st.markdown("""## 2.2. PCA""")
 # ________________________________________________________________________________________________________________________________________________________________
 st.markdown("""# 3. RFE""")
 
-# --- Cargar dataset ---
-# URL del CSV en GitHub (raw)
-url = "https://raw.githubusercontent.com/DiegoNaranjo84/cirrosis_hepatica/main/liver_cirrhosis.csv"
+# ______________________________________________________
 
-# Cargar el dataset
-df = pd.read_csv(url)
-
-st.write("Vista previa de los datos:")
-st.dataframe(df.head())
+st.markdown("""# 3. RFE""")
 
 # Convertir Stage a categórica
 df["Stage"] = df["Stage"].astype("category")
 
 # Definir variables categóricas y numéricas
-categorical = df.select_dtypes(include=['object','category'])
+categorical = df.select_dtypes(include=["object","category"])
 categorical_features = categorical.columns.drop("Stage").tolist()
-numerical_features = df.select_dtypes(include=['int64','float64']).columns.tolist()
+numerical_features = df.select_dtypes(include=["int64","float64"]).columns.tolist()
 
 # Separar X e y
 X = df[categorical_features + numerical_features]
@@ -422,147 +406,74 @@ y = df["Stage"]
 
 # Partición train-test
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, random_state=42, stratify=y)
+    X, y, test_size=0.33, random_state=42, stratify=y
+)
+
+# OneHotEncoder compatible con distintas versiones de sklearn
+try:
+    OHE = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+except TypeError:
+    OHE = OneHotEncoder(handle_unknown="ignore", sparse=False)
 
 # Preprocesador
 preprocessor = ColumnTransformer(
     transformers=[
-        ('num', 'passthrough', numerical_features),
-        ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
-    ])
+        ("num", "passthrough", numerical_features),
+        ("cat", OHE, categorical_features),
+    ]
+)
 
-# Definir modelos
+# Modelos disponibles
 models = {
-    'Decision Tree': DecisionTreeClassifier(random_state=42),
-    'Random Forest': RandomForestClassifier(random_state=42),
-    'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42)
+    "Decision Tree": DecisionTreeClassifier(random_state=42),
+    "Random Forest": RandomForestClassifier(random_state=42),
+    "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
 }
 
-# Resultados
-results = {}
-selected_features = {}
-selected_feature_names = {}
+# ---- Control: seleccionar 1 modelo (por defecto Random Forest) ----
+model_names = list(models.keys())
+default_index = model_names.index("Decision Tree") if "Random Forest" in model_names else 0
+modelo_elegido = st.selectbox("Modelo a ejecutar", options=model_names, index=default_index, key="rfe_modelo")
+model = models[modelo_elegido]
 
 st.title("Resultados de Selección de Características con RFE-CV")
+st.subheader(f"Modelo: {modelo_elegido}")
 
-for name, model in models.items():
-    st.subheader(f"Modelo: {name}")
+# RFECV
+rfe = RFECV(
+    estimator=model,
+    step=1,
+    cv=RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42),
+    scoring="accuracy",
+    n_jobs=-1,
+)
 
-    # RFECV
-    rfe = RFECV(
-        estimator=model,
-        step=1,
-        cv=RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=42),
-        scoring='accuracy',
-        n_jobs=-1
-    )
+# Pipeline
+pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("feature_selection", rfe),
+    ("model", model),
+])
 
-    # Pipeline
-    pipeline = Pipeline([
-        ('preprocessor', preprocessor),
-        ('feature_selection', rfe),
-        ('model', model)
-    ])
+# Entrenar
+pipeline.fit(X_train, y_train)
 
-    # Entrenar
-    pipeline.fit(X_train, y_train)
+# Evaluar
+accuracy_test = pipeline.score(X_test, y_test)
+mask = pipeline.named_steps["feature_selection"].support_
+feature_names = pipeline.named_steps["preprocessor"].get_feature_names_out()
+selected_names = feature_names[mask]
 
-    # Evaluar
-    accuracy_test = pipeline.score(X_test, y_test)
-    mask = pipeline.named_steps['feature_selection'].support_
-    feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
-    selected_names = feature_names[mask]
+# Mostrar en la app
+st.write(f"*Accuracy en test set:* {accuracy_test:.3f}")
+st.write(f"*Variables seleccionadas:* {len(selected_names)}")
+st.write(f"*Nombres:* {list(selected_names)}")
 
-    # Guardar
-    results[name] = accuracy_test
-    selected_features[name] = len(selected_names)
-    selected_feature_names[name] = selected_names
-
-    # Mostrar en la app
-    st.write(f"**Accuracy en test set:** {accuracy_test:.3f}")
-    st.write(f"**Variables seleccionadas:** {len(selected_names)}")
-    st.write(f"**Nombres:** {list(selected_names)}")
-
-# Resumen final
+# Resumen final (solo el modelo elegido)
 st.header("Resumen Final")
-
-for name in models:
-    try:
-        st.markdown(f"""
-        **Modelo:** {name}  
-        - Accuracy: {results[name]:.3f}  
-        - Variables seleccionadas: {selected_features[name]}  
-        - Nombres: {list(selected_feature_names[name])}  
-        """)
-    except Exception as e:
-        st.error(f"⚠️ No se pudo mostrar el resumen de {name}. Error: {e}")
-
-
-import streamlit as st
-from graphviz import Digraph
-
-# ----------------------------
-# Sección de Metodología
-# ----------------------------
-st.title("🧪 Metodología del Proyecto")
-
-st.markdown("""
-Este proyecto sigue una **metodología de Machine Learning** para la clasificación de la cirrosis hepática.  
-A continuación, se presentan los pasos:
+st.markdown(f"""
+*Modelo:* {modelo_elegido}  
+- Accuracy: {accuracy_test:.3f}  
+- Variables seleccionadas: {len(selected_names)}  
+- Nombres: {list(selected_names)}  
 """)
-
-# Paso 1
-with st.expander("📌 Paso 1: Carga de Datos"):
-    st.write("""
-    - Se utilizó un dataset con información clínica de pacientes.  
-    - El archivo fue almacenado en GitHub y cargado automáticamente en la aplicación.  
-    - Se revisó la calidad de los datos para identificar valores nulos y variables categóricas.
-    """)
-
-# Paso 2
-with st.expander("📌 Paso 2: Preprocesamiento"):
-    st.write("""
-    - Limpieza de datos: imputación de valores faltantes.  
-    - Codificación de variables categóricas (One-Hot Encoding).  
-    - Normalización de variables numéricas.  
-    """)
-
-# Paso 3
-with st.expander("📌 Paso 3: Selección de características"):
-    st.write("""
-    - Se aplicó **RFE (Recursive Feature Elimination)** y **RFECV** para reducir la dimensionalidad.  
-    - Esto permite quedarnos solo con las variables más relevantes para el modelo.  
-    """)
-
-# Paso 4
-with st.expander("📌 Paso 4: Entrenamiento del modelo"):
-    st.write("""
-    - Se probaron algoritmos como **Regresión Logística** y **SVM (Support Vector Machine)**.  
-    - Los modelos fueron entrenados con un **train-test split** para evitar sobreajuste.  
-    """)
-
-# Paso 5
-with st.expander("📌 Paso 5: Evaluación"):
-    st.write("""
-    - Se calcularon métricas como **Accuracy, Precision, Recall y F1-Score**.  
-    - También se aplicó validación cruzada para obtener una estimación más robusta.  
-    """)
-
-st.success("✅ Metodología explicada de forma dinámica")
-
-# ----------------------------
-# Diagrama visual del pipeline
-# ----------------------------
-st.subheader("🔎 Flujo Metodológico")
-
-dot = Digraph()
-
-dot.node("A", "Carga de Datos")
-dot.node("B", "Preprocesamiento")
-dot.node("C", "Selección de características (RFE/RFECV)")
-dot.node("D", "Entrenamiento del modelo\n(Logistic Regression, SVM)")
-dot.node("E", "Evaluación del modelo\n(Accuracy, Recall, F1-Score)")
-
-dot.edges(["AB", "BC", "CD", "DE"])
-
-st.graphviz_chart(dot)
