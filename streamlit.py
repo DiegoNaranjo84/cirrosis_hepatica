@@ -567,17 +567,9 @@ resultados = {
     ]
 }
 
-# Quitar el índice (0,1,2,...) y reemplazarlo por uno limpio
-df_resultados_reset = df_resultados.reset_index(drop=True)
-
-# Mostrar la tabla de lado a lado
-st.dataframe(df_resultados_reset, use_container_width=True)
-
-
-
-
 # Convertir a DataFrame
 df_resultados = pd.DataFrame(resultados)
 
 # Mostrar tabla en formato científico
 st.dataframe(df_resultados.style.format(precision=3))
+
