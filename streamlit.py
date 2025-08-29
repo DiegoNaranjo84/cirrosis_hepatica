@@ -68,6 +68,7 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
