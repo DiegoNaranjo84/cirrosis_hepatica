@@ -1505,6 +1505,7 @@ models = {
     "Decision Tree": DecisionTreeClassifier(random_state=42),
     "Random Forest": RandomForestClassifier(random_state=42),
     "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
+    "ExtraTrees": ExtraTreesClassifier(random_state=42),
 }
 
 # ---- Control: seleccionar 1 modelo (por defecto Random Forest) ----
@@ -1554,9 +1555,9 @@ st.header("Tabla Comparativa de Modelos")
 
 # Definir manualmente los resultados proporcionados
 resultados = {
-    "Modelo": ["Decision Tree", "Random Forest", "Logistic Regression"],
-    "Accuracy": [0.922, 0.946, 0.553],
-    "N° de Variables": [3, 6, 25],
+    "Modelo": ["Decision Tree", "Random Forest", "Logistic Regression","Extra Trees"],
+    "Accuracy": [0.922, 0.946, 0.553, 0.948],
+    "N° de Variables": [3, 6, 25, 7],
     "Variables Seleccionadas": [
         ["num__N_Days", "num__Albumin", "num__Prothrombin"],
         ["num__N_Days", "num__Age", "num__Bilirubin", "num__Albumin", "num__Platelets", "num__Prothrombin"],
@@ -1565,7 +1566,9 @@ resultados = {
          "cat__Status_C", "cat__Status_CL", "cat__Status_D", "cat__Drug_D-penicillamine",
          "cat__Drug_Placebo", "cat__Sex_F", "cat__Sex_M", "cat__Ascites_N", "cat__Ascites_Y",
          "cat__Hepatomegaly_N", "cat__Hepatomegaly_Y", "cat__Spiders_N", "cat__Spiders_Y",
-         "cat__Edema_N", "cat__Edema_S", "cat__Edema_Y"]
+         "cat__Edema_N", "cat__Edema_S", "cat__Edema_Y"],
+        ["num__N_Days", "num__Age", "num__Bilirubin", "num__Albumin", "num__Copper", "num__Platelets", 
+         "num__Prothrombin"]
     ]
 }
 
