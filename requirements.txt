@@ -12,3 +12,4 @@ xgboost
 kagglehub
 altair
 graphviz
+plotly
