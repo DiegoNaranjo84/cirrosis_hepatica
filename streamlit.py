@@ -9,80 +9,81 @@ import os
 import altair as alt
 import plotly.express as px
 import prince
+import mca
+import warnings
 
 from sklearn import set_config
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import chi2
-from sklearn.feature_selection import mutual_info_classif
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
-from sklearn.feature_selection import f_classif
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.model_selection import cross_val_score
-from numpy import mean
-from numpy import std
-from sklearn.datasets import make_regression
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import mutual_info_regression
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.feature_selection import RFE
-from sklearn.linear_model import Perceptron
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from matplotlib import pyplot
-from sklearn.feature_selection import RFE
-from sklearn.feature_selection import RFECV
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-import mca
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from scipy.stats import uniform
-from scipy.stats import randint
-from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import (
+    train_test_split,
+    GridSearchCV,
+    RandomizedSearchCV,
+    RepeatedStratifiedKFold,
+    StratifiedKFold,
+    cross_val_score
+)
+from sklearn.preprocessing import (
+    LabelEncoder,
+    OrdinalEncoder,
+    OneHotEncoder,
+    StandardScaler,
+    FunctionTransformer
+)
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn import set_config
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
-from sklearn.linear_model import LogisticRegression
+from sklearn.feature_selection import (
+    SelectKBest,
+    chi2,
+    mutual_info_classif,
+    f_classif,
+    f_regression,
+    mutual_info_regression,
+    RFE,
+    RFECV
+)
+from sklearn.linear_model import (
+    LogisticRegression,
+    LinearRegression,
+    Perceptron
+)
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+    ExtraTreesClassifier,
+    HistGradientBoostingClassifier
+)
 from xgboost import XGBClassifier
-from sklearn.model_selection import cross_val_score
-import streamlit as st
-from graphviz import Digraph
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.model_selection import cross_val_score, StratifiedKFold
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.decomposition import PCA
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
     balanced_accuracy_score,
     classification_report,
     confusion_matrix,
+    mean_absolute_error
 )
+from scipy.stats import uniform, randint
+from graphviz import Digraph
 
-import warnings
+# Ignorar advertencias
 warnings.filterwarnings("ignore")
 
 
 st.set_page_config(page_title="Cirrosis Hepatica Streamlit App", layout="wide")
 st.title("Clasificación de los estadios de la cirrosis hepática con métodos de Machine Learning")
+
+
+st.header("Equipo")
+st.write("[Diego Fernando Naranjo Polanía](mailto:dnaranjop@unbosque.edu.co)")
+st.write("[Johan Steven Mahecha Cobos](mailto:jsmahecha@unbosque.edu.co)")
+st.write("[Rafael Eduardo Montenegro González](mailto:rmontenegro@unbosque.edu.co)")
+
+st.subheader("Origen de la base de datos")
+st.write("[Kaggle – Liver Cirrhosis Stage Classification](https://www.kaggle.com/datasets/aadarshvelu/liver-cirrhosis-stage-classification)")
+
 
 # ----------------------------
 # Sección de Metodología
@@ -293,11 +294,11 @@ with st.container():
         orden_alfabetico = st.checkbox("Ordenar alfabéticamente (solo tabla)", value=False, key="cat_orden_local")
 
 # =========================
-# Preparar datos (siempre incluye NaN)
+# Preparar datos 
 # =========================
 serie = df[var].copy()
 
-vc = serie.value_counts(dropna=True)  # Se mantienen los NaN para contarlos
+vc = serie.value_counts(dropna=True)
 
 # Etiqueta amigable para NaN
 labels = vc.index.to_list()
@@ -371,6 +372,9 @@ with c2:
 st.caption("Consejo: usa *Top N* para simplificar la lectura y agrupar categorías poco frecuentes en 'Otros'.")
 
 #####--------------------------------------------------------------------------------------#########
+
+
+
 
 # =========================
 # Análisis de variables numéricas
@@ -466,6 +470,53 @@ with g2:
     )
     st.altair_chart(hist_chart, use_container_width=True)
 
+
+
+st.subheader("Distribuciones Simétricas")
+st.markdown("""
+Las variables **Age**, **Albumin**, **Platelets** y **Prothrombin** presentan distribuciones cercanas a la forma de campana, 
+lo que indica una dispersión relativamente equilibrada alrededor de la media.  
+Aunque existe una ligera asimetría, la mayoría de los valores se concentran en torno a la mediana y la media, 
+sin presencia marcada de colas largas.
+""")
+
+st.subheader("Distribuciones con Sesgo a la Derecha (Asimetría Positiva)")
+st.markdown("""
+Las variables **Bilirubin**, **Cholesterol**, **Copper**, **Alk_Phos**, **SGOT**, **Triglycerides** y **N_Days** muestran 
+**asimetría positiva**, es decir, presentan una concentración de valores en la parte baja del rango y colas largas hacia la derecha.  
+Esto sugiere alta dispersión y la posible presencia de valores extremos (outliers), particularmente en variables bioquímicas:
+
+- **Bilirubin**: valores entre 0,3 y 28 mg/dL, media de 3,40 mg/dL  
+- **Cholesterol**: promedio de 372 mg/dL con máxima dispersión (DE ≈ 193,7), hasta 1775 mg/dL  
+- **Copper** y **Alk_Phos**: alta variabilidad, con Alk_Phos alcanzando 13862,4 U/L  
+- **SGOT**: valores entre 26,35 y 457,25 U/L, media de 123,17 U/L  
+- **Triglycerides**: promedio 123,82 mg/dL, con extremos hasta 598 mg/dL  
+""")
+
+st.subheader("Posibles Outliers Extremos")
+st.markdown("""
+Se identifican posibles valores atípicos en:
+
+- **Bilirubin**: > 20 mg/dL  
+- **Cholesterol**: > 1500 mg/dL  
+- **Alk_Phos**: > 10000 U/L  
+- **Copper**: > 500 µg/dL  
+- **SGOT**: > 400 U/L  
+
+Estos casos deben evaluarse para decidir si requieren tratamiento previo al modelado estadístico.
+""")
+
+st.subheader("Resumen de Variables Estables")
+st.markdown("""
+- **Albumin**: valores entre 1,96 y 4,64 g/dL, mediana 3,51 g/dL, baja dispersión  
+- **Platelets**: promedio 256 × 10³/µL, rango 62 a 721 × 10³/µL  
+- **Prothrombin**: media de 10,73 s, variación reducida (DE ≈ 0,90 s)  
+
+En conjunto, estas variables muestran un comportamiento más estable y menos afectado por valores extremos.
+""")
+
+
+
 # =========================
 # Matriz de Correlación (media pantalla)
 # =========================
@@ -504,7 +555,42 @@ with sns.plotting_context("notebook", font_scale=0.6):
     fig.tight_layout(pad=0.5)
     st.pyplot(fig, use_container_width=True)  # Se ajusta al ancho del contenedor
 
+
+# ============================
+# Análisis de correlaciones en Streamlit
+# ============================
+
+st.subheader("Correlaciones Positivas Más Destacadas")
+st.markdown("""
+- **Bilirubin y Copper:** 0.43 → Correlación positiva moderada; niveles más altos de bilirrubina tienden a coincidir con más cobre.  
+- **Bilirubin y SGOT:** 0.37  
+- **Bilirubin y Triglycerides:** 0.38 → Relaciones positivas moderadas.  
+- **Albumin y N_Days:** 0.37 → Mayor albúmina asociada con más días de seguimiento.  
+- **SGOT y Cholesterol:** 0.32  
+- **SGOT y Copper:** 0.28 → Ligera asociación de la enzima SGOT con colesterol y cobre.  
+- **Bilirubin y Cholesterol:** 0.34 → Relación positiva moderada.
+""")
+
+st.subheader("Correlaciones Negativas Relevantes")
+st.markdown("""
+- **Bilirubin y N_Days:** -0.39 → Mayor bilirrubina, menor tiempo de supervivencia/seguimiento.  
+- **Copper y N_Days:** -0.28 → Tendencia a menor tiempo de seguimiento con cobre alto.  
+- **Albumin y Bilirrubin:** -0.28 → Más bilirrubina asociada con menos albúmina, consistente con disfunción hepática.
+""")
+
+st.subheader("Análisis General")
+st.markdown("""
+La **bilirrubina** es la variable con mayores correlaciones:  
+- Positivas moderadas con cobre, SGOT y colesterol  
+- Negativas con tiempo de seguimiento y albúmina  
+
+No se observan correlaciones fuertes (> 0.7), lo que sugiere que las variables pueden aportar **información complementaria** en futuros modelos.
+""")
+
+
 #________________________________________________________________________________________________________________________________________________________________
+
+
 
 
 # ________________________________________________________________________________________________________________________________________________________________
@@ -632,6 +718,21 @@ else:
         with tab_mi:
             st.markdown("**Método:** Información Mutua (dependencia no lineal)")
             run_selector(mutual_info_classif, "SelectKBest Información Mutua", "mi_11")
+
+
+st.subheader("Conclusión Parcial: Chi² e Información Mutua")
+st.markdown("""
+Tras aplicar las técnicas de **Chi²** e **Información Mutua**, ambos métodos convergieron en el mismo conjunto de **9 variables categóricas**,  
+con evidencia de **aporte predictivo** y coherencia.  
+
+Dado que son variables nominales, la **codificación One-Hot-Encoder (OHE)** es la alternativa recomendada, pasando de **7 variables iniciales a 16 codificadas**.
+
+Al coincidir los dos criterios de selección, los modelos se ejecutaron una sola vez sobre este conjunto.  
+En los experimentos con solo variables categóricas:  
+- **Random Forest** y **Árboles de Decisión** lograron la mejor *accuracy* ≈ **51,62 %**  
+
+Este resultado se interpreta como una **cota inferior del desempeño**, ya que se espera una mejora al **integrar las variables numéricas**
+""")
 
 
 # ________________________________________________________________________________________________________________________________________________________________
@@ -773,6 +874,29 @@ else:
             st.write(f"**Mejor Accuracy CV:** {search.best_score_:.4f}")
 
 
+st.subheader("Conclusiones Parciales")
+
+st.markdown("""
+- Los dos **selectores de características** (*f_classif* y *mutual_info_classif*) presentan **diferentes scores** y seleccionan distintas variables, aunque coinciden en las características **N_Dias, Colesterol,  y triglicéridos**.  
+
+- Con **mutual_info_classif** la mayoría de las variables muestran un **score más representativo**, destacando las características **N_Dias, Edad y Triglicéridos**.  
+  Con **f_classif** destacan las características **N_Dias, Colesterol,  y plaquetas** como más relevantes.  
+
+- Esta diferencia **no permite definir un conjunto único** de características para trabajar de forma confiable.  
+  Por ello, se decide **modelar y observar el comportamiento** con las diferentes variables seleccionadas.
+""")
+
+st.markdown("""
+- Los diferentes modelos **no mejoraron el *accuracy*** respecto al modelo principal con todas las variables al aplicar **técnicas de selección de características**.  
+
+- En la **regresión logística softmax**, con **7 variables** se obtuvo un *accuracy* similar al del modelo completo.  
+
+- Los algoritmos utilizados **no permitieron reducir de forma efectiva** la cantidad de variables sin afectar el desempeño.  
+
+- Con **solo variables numéricas**, el modelo **SVC** alcanzó el mejor *accuracy* (≈ **0.7557**) **sin reducir variables**.  
+  Se espera que este resultado **mejore al integrar las variables categóricas**.
+""")
+
 
 
 
@@ -906,8 +1030,12 @@ def s14_build_model(name: str):
         return DecisionTreeClassifier(random_state=42)
     if name == "Random Forest":
         return RandomForestClassifier(random_state=42)
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42)
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42)
     raise ValueError("Modelo no soportado")
-
+    
 # ===== Reutilizar transformaciones de 1.3 si existen; si no, fallback mínimo =====
 try:
     X_train_14 = s13_X_train_t
@@ -956,9 +1084,18 @@ except NameError:
 
 # ===== UI de selección de modelo =====
 model_name_14 = st.selectbox(
-    "Elige el modelo a evaluar (CV estratificado, aislado 1.4)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0, key="s14_model_sel"
+    "Elige el modelo a evaluar",
+    options=[
+        "Logistic Regression",
+        "KNN",
+        "SVC",
+        "Decision Tree",
+        "Random Forest",
+        "ExtraTrees",
+        "HistGradientBoosting",
+    ],
+    index=0,
+    key="s14_model_sel"
 )
 
 modelo_14 = s14_build_model(model_name_14)
@@ -987,10 +1124,155 @@ st.write(pd.DataFrame(confusion_matrix(y_test_14, y_pred_14),
 
 
 
+# __________________________________________________________________________________________________
+st.markdown("## 1.5. Búsqueda de hiperparámetros (Randomized Search)")
+
+# Reutilizar datos procesados de la sección 1.3
+try:
+    X_train_15 = s13_X_train_t
+    X_test_15  = s13_X_test_t
+    y_train_15 = s13_y_train
+    y_test_15  = s13_y_test
+except NameError:
+    st.error("❌ No se encontraron datos procesados de la Sección 1.3. Ejecuta esa sección primero.")
+    st.stop()
+
+# Selección del modelo para ajustar
+model_name_15 = st.selectbox(
+    "Elige el modelo para Randomized Search",
+    options=[
+        "Logistic Regression",
+        "KNN",
+        "SVC",
+        "Decision Tree",
+        "Random Forest",
+        "ExtraTrees",
+        "HistGradientBoosting"
+    ],
+    index=0,
+    key="s15_model_sel"
+)
+
+# Espacios de búsqueda para cada modelo
+def get_search_space(name):
+    if name == "Logistic Regression":
+        return LogisticRegression(max_iter=5000, multi_class="multinomial", solver="lbfgs"), {
+            "C": uniform(0.01, 10)
+        }
+    if name == "KNN":
+        return KNeighborsClassifier(), {
+            "n_neighbors": randint(3, 30),
+            "weights": ["uniform", "distance"],
+            "metric": ["euclidean", "manhattan", "minkowski"]
+        }
+    if name == "SVC":
+        return SVC(), {
+            "C": uniform(0.01, 10),
+            "kernel": ["linear", "rbf", "poly"],
+            "gamma": ["scale", "auto"]
+        }
+    if name == "Decision Tree":
+        return DecisionTreeClassifier(random_state=42), {
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "criterion": ["gini", "entropy"]
+        }
+    if name == "Random Forest":
+        return RandomForestClassifier(random_state=42), {
+            "n_estimators": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "min_samples_leaf": randint(1, 10),
+            "max_features": ["sqrt", "log2"]
+        }
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42), {
+            "n_estimators": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "min_samples_split": randint(2, 10),
+            "min_samples_leaf": randint(1, 10),
+            "max_features": ["sqrt", "log2"]
+        }
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42), {
+            "max_iter": randint(50, 300),
+            "max_depth": randint(3, 20),
+            "learning_rate": uniform(0.01, 0.3),
+            "min_samples_leaf": randint(1, 20)
+        }
+
+# Obtener modelo y espacio
+model_15, param_dist = get_search_space(model_name_15)
+
+# Validación cruzada
+cv_15 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+# Randomized Search
+rs = RandomizedSearchCV(
+    estimator=model_15,
+    param_distributions=param_dist,
+    n_iter=20,
+    cv=cv_15,
+    scoring="accuracy",
+    n_jobs=-1,
+    random_state=42
+)
+
+with st.spinner("⏳ Buscando mejores hiperparámetros..."):
+    rs.fit(X_train_15, y_train_15)
+
+# Resultados
+st.subheader("Mejores hiperparámetros encontrados")
+st.write(rs.best_params_)
+st.write(f"**Mejor Accuracy CV:** {rs.best_score_:.4f}")
+
+# Evaluación en Test
+best_model = rs.best_estimator_
+y_pred_15 = best_model.predict(X_test_15)
+
+st.markdown("### Evaluación en Test")
+st.write(f"**Accuracy Test:** {accuracy_score(y_test_15, y_pred_15):.4f}")
+st.text("📋 Classification Report:")
+st.text(classification_report(y_test_15, y_pred_15))
 
 
+def sec_tabla_comparativa_metricas():
+    st.markdown("## 📊 Comparativa de modelos con métricas por clase")
 
+    # Datos obtenidos de las capturas
+    data = [
+        # Modelo, Accuracy Test, Clases (Precision, Recall, F1)
+        ("Logistic Regression", 0.5770,
+         [(0.57, 0.60, 0.58), (0.51, 0.46, 0.48), (0.65, 0.67, 0.66)]),
+        ("KNN", 0.9265,
+         [(0.92, 0.92, 0.92), (0.91, 0.92, 0.91), (0.95, 0.94, 0.95)]),
+        ("Decision Tree", 0.9070,
+         [(0.90, 0.90, 0.90), (0.90, 0.90, 0.90), (0.93, 0.92, 0.92)]),
+        ("Random Forest", 0.9451,
+         [(0.95, 0.94, 0.94), (0.93, 0.94, 0.93), (0.96, 0.96, 0.96)]),
+        ("ExtraTrees", 0.9356,
+         [(0.93, 0.93, 0.93), (0.92, 0.92, 0.92), (0.96, 0.95, 0.95)]),
+    ]
 
+    # Expandir datos a filas
+    rows = []
+    for modelo, acc, clases in data:
+        for i, (p, r, f) in enumerate(clases, start=1):
+            rows.append({
+                "Modelo": modelo,
+                "Clase": i,
+                "Precision": p,
+                "Recall": r,
+                "F1-score": f,
+                "Accuracy Test": acc if i == 1 else np.nan  # solo mostrar una vez
+            })
+
+    df = pd.DataFrame(rows)
+
+    # Mostrar en Streamlit
+    st.dataframe(df, use_container_width=True)
+
+sec_tabla_comparativa_metricas()
 
 
 
@@ -1116,7 +1398,6 @@ if cat_sel:
             st.markdown(
                 f"- Varianza objetivo: **{var_target_mca*100:.0f}%**  \n"
                 f"- Dimensiones usadas: **{n_dims_target}**  \n"
-                f"- Variables categóricas seleccionadas: **{len(cat_sel)}**"
             )
 else:
     st.info("Selecciona variables categóricas para ejecutar MCA.")
@@ -1293,31 +1574,48 @@ with cB:
 # ______________________________________________________________________________________________________
 
 # __________________________________________________________________________________________________
+
+
 st.markdown("""## 2.4. Modelado""")
 
 
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_24 = st.selectbox(
     "Elige el modelo a evaluar (CV 5-fold)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
-    index=0,  # Logistic Regression por defecto
+    options=[
+        "Logistic Regression", "KNN", "SVC", 
+        "Decision Tree", "Random Forest", 
+        "ExtraTrees", "HistGradientBoosting"
+    ],
+    index=0,
     key="model_sel_24"
 )
 
 # --- Construcción del modelo según selección
 def build_model(name: str):
     if name == "Logistic Regression":
-        return LogisticRegression(multi_class="multinomial", solver="lbfgs", max_iter=2000, class_weight="balanced", random_state=42)
+        return LogisticRegression(
+            multi_class="multinomial", 
+            solver="lbfgs", 
+            max_iter=2000, 
+            class_weight="balanced", 
+            random_state=42
+        )
     if name == "KNN":
-        return KNeighborsClassifier()
+        return KNeighborsClassifier(random_state=42)
     if name == "SVC":
-        return SVC()  # por defecto rbf; podrías envolver en Pipeline con StandardScaler si lo deseas
+        return SVC(random_state=42)
     if name == "Decision Tree":
         return DecisionTreeClassifier(random_state=42)
     if name == "Random Forest":
         return RandomForestClassifier(random_state=42)
+    if name == "ExtraTrees":
+        return ExtraTreesClassifier(random_state=42)
+    if name == "HistGradientBoosting":
+        return HistGradientBoostingClassifier(random_state=42)
+    
     raise ValueError("Modelo no soportado")
-
+    
 modelo_24 = build_model(model_name_24)
 
 # --- CV estratificado para mayor estabilidad
@@ -1325,23 +1623,27 @@ cv5 = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 scores = cross_val_score(modelo_24, X_train_final, y_train, cv=cv5, scoring="accuracy", n_jobs=-1)
 
 st.subheader("Resultados de validación cruzada")
-st.write(f"**Modelo:** {model_name_24}")
-st.write(f"**Accuracy (media CV):** {scores.mean():.4f}  |  **Std:** {scores.std():.4f}")
+st.write(f"*Modelo:* {model_name_24}")
+st.write(f"*Accuracy (media CV):* {scores.mean():.4f}  |  *Std:* {scores.std():.4f}")
 
-# __________________________________________________________________________________________________
+# __________________________________
 st.markdown("""## 2.5. Ajuste de hiperparámetros""")
 
 from sklearn.model_selection import RandomizedSearchCV
 from scipy.stats import randint, uniform, loguniform
 
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
+
 model_name_25 = st.selectbox(
     "Elige el modelo a ajustar (RandomizedSearchCV)",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    options=[
+        "Logistic Regression", "KNN", "SVC", 
+        "Decision Tree", "Random Forest",
+        "ExtraTrees", "HistGradientBoosting" 
+    ],
     index=0,
     key="model_sel_25"
 )
-
 # --- Espacios de búsqueda por modelo (evitando combinaciones inválidas)
 def get_model_and_searchspace(name: str):
     if name == "Logistic Regression":
@@ -1386,6 +1688,26 @@ def get_model_and_searchspace(name: str):
             "max_features": ["sqrt", "log2", None],
         }
         return model, param_dist, "accuracy"
+    if name == "ExtraTrees":
+        model = ExtraTreesClassifier(random_state=42, n_jobs=-1)
+        param_dist = {
+            "n_estimators": randint(50, 200),
+            "max_depth": randint(5, 30),
+            "min_samples_split": randint(2, 20),
+            "min_samples_leaf": randint(1, 20),
+            "max_features": ["sqrt", "log2", None],
+            "bootstrap": [True, False],
+        }
+        return model, param_dist, "accuracy"
+    if name == "HistGradientBoosting":
+        model = HistGradientBoostingClassifier(random_state=42)
+        param_dist = {
+            "max_iter": randint(50, 200),
+            "learning_rate": [0.01, 0.05, 0.1, 0.2],
+            "max_depth": randint(2, 10),
+            "max_leaf_nodes": randint(10, 50),
+        }
+        return model, param_dist, "accuracy"
     raise ValueError("Modelo no soportado")
 
 estimator_25, searchspace_25, metric_25 = get_model_and_searchspace(model_name_25)
@@ -1404,16 +1726,16 @@ random_search = RandomizedSearchCV(
 random_search.fit(X_train_final, y_train)
 
 st.subheader("Mejores hiperparámetros")
-st.write(f"**Modelo:** {model_name_25}")
-st.write("**Best params:**", random_search.best_params_)
-st.write(f"**Mejor {metric_25} (CV):** {random_search.best_score_:.4f}")
+st.write(f"*Modelo:* {model_name_25}")
+st.write("*Best params:*", random_search.best_params_)
+st.write(f"*Mejor {metric_25} (CV):* {random_search.best_score_:.4f}")
 
 # Guardar el mejor estimador en session_state para reusarlo en 2.6
 if "best_estimators" not in st.session_state:
     st.session_state.best_estimators = {}
 st.session_state.best_estimators[model_name_25] = random_search.best_estimator_
 
-# __________________________________________________________________________________________________
+# __________________________________
 st.markdown("""## 2.6. Comparación de modelos optimizados""")
 
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -1421,7 +1743,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 # --- Filtro único de la subsección (por defecto: Logistic Regression)
 model_name_26 = st.selectbox(
     "Elige el modelo a evaluar en Test",
-    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest"],
+    options=["Logistic Regression", "KNN", "SVC", "Decision Tree", "Random Forest", "ExtraTrees", "HistGradientBoosting"],
     index=0,
     key="model_sel_26"
 )
@@ -1447,13 +1769,38 @@ y_pred = modelo_26.predict(X_test_final)
 acc_test = accuracy_score(y_test, y_pred)
 
 st.markdown(f"### 📌 Modelo: {model_name_26}")
-st.markdown(f"**Accuracy CV (media ± std):** {mean_cv:.4f} ± {std_cv:.4f}")
-st.markdown(f"**Accuracy Test:** {acc_test:.4f}")
+st.markdown(f"*Accuracy CV (media ± std):* {mean_cv:.4f} ± {std_cv:.4f}")
+st.markdown(f"*Accuracy Test:* {acc_test:.4f}")
 st.text("📋 Classification Report (Test):")
 st.text(classification_report(y_test, y_pred))
 st.text("🧩 Matriz de Confusión (Test):")
 st.write(pd.DataFrame(confusion_matrix(y_test, y_pred), index=sorted(y_test.unique()), columns=sorted(y_test.unique())))
 
+# Definir resultados fijos manualmente
+resultados = {
+    "Modelo": [
+        "Random Forest",
+        "KNN",
+        "HistGradientBoosting",
+        "ExtraTrees",
+        "Decision Tree",
+        "SVM",
+        "Logistic Regression"
+    ],
+    "Accuracy CV (media)": [0.9036, 0.9041, 0.8952, 0.8935, 0.8539, 0.7861, 0.5688],
+    "Accuracy CV (std)":   [0.0035, 0.0032, 0.0041, 0.0035, 0.0062, 0.0031, 0.0053],
+    "Accuracy Test":       [0.9103, 0.9093, 0.8952, 0.9022, 0.8641, 0.7960, 0.5748]
+}
+
+# Crear DataFrame
+df_resultados = pd.DataFrame(resultados)
+
+# Ordenar por Accuracy Test (descendente)
+df_resultados = df_resultados.sort_values(by="Accuracy Test", ascending=False)
+
+# Mostrar en Streamlit
+st.markdown("### 📊 Resumen Comparativo de Modelos")
+st.dataframe(df_resultados.style.format(precision=4), use_container_width=True)
 
 
 # === FIN SECCIÓN 2 ===
@@ -1544,9 +1891,9 @@ feature_names = pipeline.named_steps["preprocessor"].get_feature_names_out()
 selected_names = feature_names[mask]
 
 # Mostrar en la app
-st.write(f"*Accuracy en test set:* {accuracy_test:.3f}")
-st.write(f"*Variables seleccionadas:* {len(selected_names)}")
-st.write(f"*Nombres:* {list(selected_names)}")
+st.write(f"Accuracy en test set: {accuracy_test:.3f}")
+st.write(f"Variables seleccionadas: {len(selected_names)}")
+st.write(f"Nombres: {list(selected_names)}")
 
 
 # =========================
@@ -1560,15 +1907,15 @@ resultados = {
     "Accuracy": [0.922, 0.946, 0.553, 0.948],
     "N° de Variables": [3, 6, 25, 7],
     "Variables Seleccionadas": [
-        ["num__N_Days", "num__Albumin", "num__Prothrombin"],
-        ["num__N_Days", "num__Age", "num__Bilirubin", "num__Albumin", "num__Platelets", "num__Prothrombin"],
-        ["num__N_Days", "num__Bilirubin", "num__Cholesterol", "num__Albumin", "num__Copper",
-         "num__SGOT", "num__Tryglicerides", "num__Platelets", "num__Prothrombin",
-         "cat__Status_C", "cat__Status_CL", "cat__Status_D", "cat__Drug_D-penicillamine",
-         "cat__Drug_Placebo", "cat__Sex_F", "cat__Sex_M", "cat__Ascites_N", "cat__Ascites_Y",
-         "cat__Hepatomegaly_N", "cat__Hepatomegaly_Y", "cat__Spiders_N", "cat__Spiders_Y",
-         "cat__Edema_N", "cat__Edema_S", "cat__Edema_Y"],
-        ["num__N_Days", "num__Age", "num__Bilirubin", "num__Albumin", "num__Copper", "num__Platelets", 
+        ["num_N_Days", "numAlbumin", "num_Prothrombin"],
+        ["num_N_Days", "numAge", "numBilirubin", "numAlbumin", "numPlatelets", "num_Prothrombin"],
+        ["num_N_Days", "numBilirubin", "numCholesterol", "numAlbumin", "num_Copper",
+         "num_SGOT", "numTryglicerides", "numPlatelets", "num_Prothrombin",
+         "cat_Status_C", "catStatus_CL", "catStatus_D", "cat_Drug_D-penicillamine",
+         "cat_Drug_Placebo", "catSex_F", "catSex_M", "catAscites_N", "cat_Ascites_Y",
+         "cat_Hepatomegaly_N", "catHepatomegaly_Y", "catSpiders_N", "cat_Spiders_Y",
+         "cat_Edema_N", "catEdema_S", "cat_Edema_Y"],
+        ["num_N_Days", "numAge", "numBilirubin", "numAlbumin", "numCopper", "num_Platelets", 
          "num__Prothrombin"]
     ]
 }
@@ -1578,8 +1925,4 @@ df_resultados = pd.DataFrame(resultados)
 
 # Mostrar tabla en formato científico
 st.dataframe(df_resultados.style.format(precision=3))
-
-
-
-
 
